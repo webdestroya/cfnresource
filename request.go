@@ -42,9 +42,10 @@ func (r *Request[Model, Ctx]) UnmarshalJSON(data []byte) error {
 
 func (r *Request[Model, Ctx]) InProgressResponse(model *Model, callbackContext *Ctx) *ProgressEvent[Model, Ctx] {
 	return &ProgressEvent[Model, Ctx]{
-		OperationStatus: cfnTypes.OperationStatusInProgress,
-		CallbackContext: callbackContext,
-		ResourceModel:   model,
+		OperationStatus:      cfnTypes.OperationStatusInProgress,
+		CallbackContext:      callbackContext,
+		ResourceModel:        model,
+		CallbackDelaySeconds: int(DefaultCallbackDelay.Abs().Seconds()),
 	}
 }
 
@@ -66,7 +67,7 @@ func (r *Request[Model, Ctx]) ErrorResponse(err any) *ProgressEvent[Model, Ctx] 
 	case string:
 		pe = pe.WithMessage(v)
 	case error:
-		pe = pe.WithMessage(v.Error())
+		pe = pe.WithError(v)
 	}
 
 	return pe
@@ -89,18 +90,21 @@ func newRequest[Model any, CallbackCtx any](event *event) (*Request[Model, Callb
 	}
 
 	if len(event.CallbackContext) > 0 {
+		req.CallbackContext = new(CallbackCtx)
 		if err := encoding.Unmarshal(event.CallbackContext, req.CallbackContext); err != nil {
 			return nil, err
 		}
 	}
 
 	if len(event.RequestData.ResourceProperties) > 0 {
+		req.ResourceProperties = new(Model)
 		if err := encoding.Unmarshal(event.RequestData.ResourceProperties, req.ResourceProperties); err != nil {
 			return nil, err
 		}
 	}
 
 	if len(event.RequestData.PreviousResourceProperties) > 0 {
+		req.PreviousResourceProperties = new(Model)
 		if err := encoding.Unmarshal(event.RequestData.PreviousResourceProperties, req.PreviousResourceProperties); err != nil {
 			return nil, err
 		}

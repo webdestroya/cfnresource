@@ -3,51 +3,56 @@ package encoding_test
 import (
 	"testing"
 
-	"github.com/aws-cloudformation/cloudformation-cli-go-plugin/cfn/encoding"
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
+	"github.com/webdestroya/cfnresource/encoding"
 )
 
 func TestUnstringifyStruct(t *testing.T) {
 	type Model struct {
-		S  string
-		SP *string
-		B  bool
-		BP *bool
-		I  int
-		IP *int
-		F  float64
-		FP *float64
+		S   string
+		SP  *string
+		SL  StringLike
+		SLP *StringLike
+		B   bool
+		BP  *bool
+		I   int
+		IP  *int
+		F   float64
+		FP  *float64
 	}
 
 	expected := Model{
-		S:  "foo",
-		SP: aws.String("bar"),
-		B:  true,
-		BP: aws.Bool(true),
-		I:  42,
-		IP: aws.Int(42),
-		F:  3.14,
-		FP: aws.Float64(22),
+		S:   "foo",
+		SP:  aws.String("bar"),
+		SL:  StringLikeValue,
+		SLP: Ptrize(StringLikeValue),
+		B:   true,
+		BP:  aws.Bool(true),
+		I:   42,
+		IP:  aws.Int(42),
+		F:   3.14,
+		FP:  aws.Float64(22),
 	}
 
 	t.Run("Convert strings", func(t *testing.T) {
 		var actual Model
 
 		err := encoding.Unstringify(map[string]interface{}{
-			"S":  "foo",
-			"SP": "bar",
-			"B":  "true",
-			"BP": "true",
-			"I":  "42",
-			"IP": "42",
-			"F":  "3.14",
-			"FP": "22",
+			"S":   "foo",
+			"SP":  "bar",
+			"SL":  "StrLike",
+			"SLP": "StrLike",
+			"B":   "true",
+			"BP":  "true",
+			"I":   "42",
+			"IP":  "42",
+			"F":   "3.14",
+			"FP":  "22",
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -58,19 +63,19 @@ func TestUnstringifyStruct(t *testing.T) {
 		var actual Model
 
 		err := encoding.Unstringify(map[string]interface{}{
-			"S":  "foo",
-			"SP": "bar",
-			"B":  true,
-			"BP": true,
-			"I":  42,
-			"IP": 42,
-			"F":  3.14,
-			"FP": 22.0,
+			"S":   "foo",
+			"SP":  "bar",
+			"SL":  "StrLike",
+			"SLP": "StrLike",
+			"B":   true,
+			"BP":  true,
+			"I":   42,
+			"IP":  42,
+			"F":   3.14,
+			"FP":  22.0,
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -81,19 +86,19 @@ func TestUnstringifyStruct(t *testing.T) {
 		var actual Model
 
 		err := encoding.Unstringify(map[string]interface{}{
-			"S":  "foo",
-			"SP": "bar",
-			"B":  true,
-			"BP": true,
-			"I":  float64(42),
-			"IP": float64(42),
-			"F":  3.14,
-			"FP": int(22),
+			"S":   "foo",
+			"SP":  "bar",
+			"SL":  "StrLike",
+			"SLP": "StrLike",
+			"B":   true,
+			"BP":  true,
+			"I":   float64(42),
+			"IP":  float64(42),
+			"F":   3.14,
+			"FP":  int(22),
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -138,9 +143,7 @@ func TestUnstringifySlices(t *testing.T) {
 			"FP": []interface{}{"22"},
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -161,9 +164,7 @@ func TestUnstringifySlices(t *testing.T) {
 			"FP": []interface{}{22.0},
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -184,9 +185,7 @@ func TestUnstringifySlices(t *testing.T) {
 			"FP": []interface{}{int(22)},
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -231,9 +230,7 @@ func TestUnstringifyMaps(t *testing.T) {
 			"FP": map[string]interface{}{"Val": "22"},
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -254,9 +251,7 @@ func TestUnstringifyMaps(t *testing.T) {
 			"FP": map[string]interface{}{"Val": 22.0},
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -277,9 +272,7 @@ func TestUnstringifyMaps(t *testing.T) {
 			"FP": map[string]interface{}{"Val": int(22)},
 		}, &actual)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, expected); d != "" {
 			t.Error(d)
@@ -305,9 +298,7 @@ func TestUnstringifyPointers(t *testing.T) {
 		"SMP": map[string]interface{}{"bar": "baz"},
 	}, &actual)
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	if d := cmp.Diff(actual, expected); d != "" {
 		t.Error(d)

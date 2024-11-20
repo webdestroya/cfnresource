@@ -3,7 +3,6 @@ package cfnresource
 import (
 	"context"
 	"encoding/json"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -30,7 +29,7 @@ type event struct {
 // requestData is internal to the RPDK. It contains a number of fields that are for
 // internal use only.
 type requestData struct {
-	// This would be temporal-manager-us-east-1-cfn-role (the role assigned to the Resource)
+	// This would be xxxxx-us-east-1-cfn-role (the role assigned to the Resource)
 	CallerCredentials *credProvider `json:"callerCredentials"`
 
 	LogicalResourceID          string          `json:"logicalResourceId"`
@@ -56,17 +55,17 @@ type credProvider struct {
 	// SessionToken ...
 	SessionToken string `json:"sessionToken"`
 
-	internalProvider aws.CredentialsProvider
-
-	once sync.Once
+	// internalProvider aws.CredentialsProvider
+	// once sync.Once
 }
 
 var _ aws.CredentialsProvider = (*credProvider)(nil)
 
 func (c *credProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
-	c.once.Do(func() {
-		c.internalProvider = credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken)
-	})
+	// c.once.Do(func() {
+	// 	c.internalProvider = credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken)
+	// })
+	// return c.internalProvider.Retrieve(ctx)
 
-	return c.internalProvider.Retrieve(ctx)
+	return credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken).Retrieve(ctx)
 }

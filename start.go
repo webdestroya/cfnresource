@@ -10,8 +10,10 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
+	cfnTypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/webdestroya/cfnresource/cfncontext"
+	"github.com/webdestroya/cfnresource/cfnerr"
 	"github.com/webdestroya/cfnresource/cfnutils"
 	"github.com/webdestroya/cfnresource/cloudwatchwriter"
 )
@@ -61,7 +63,7 @@ func makeEventFunc[Model any, Ctx any](handler Handler[Model, Ctx]) func(context
 
 		providerCfg, err := config.LoadDefaultConfig(ctx, config.WithCredentialsProvider(event.RequestData.ProviderCredentials))
 		if err != nil {
-			return newFailedResponse(err, event.BearerToken), err
+			return newFailedResponse(err, event.BearerToken)
 		}
 
 		// setup the caller aws config
@@ -71,7 +73,7 @@ func makeEventFunc[Model any, Ctx any](handler Handler[Model, Ctx]) func(context
 		}
 		callerCfg, err := config.LoadDefaultConfig(ctx, callerCfgOptions...)
 		if err != nil {
-			return newFailedResponse(err, event.BearerToken), err
+			return newFailedResponse(err, event.BearerToken)
 		}
 		ctx = cfncontext.SetAwsConfig(ctx, callerCfg)
 
@@ -82,18 +84,20 @@ func makeEventFunc[Model any, Ctx any](handler Handler[Model, Ctx]) func(context
 		// }
 
 		// logging setup
-		logSetup.Do(func() {
-			logStreamName := fmt.Sprintf("%s/%s", cfnutils.GetStackNameFromArn(event.StackID), logicalId)
-			cwClient := cloudwatchlogs.NewFromConfig(providerCfg)
-			logWriter = cloudwatchwriter.NewSync(ctx, cwClient, event.RequestData.ProviderLogGroupName, logStreamName)
+		// logSetup.Do(func() {
+		logStreamName := fmt.Sprintf("%s/%s", cfnutils.GetStackNameFromArn(event.StackID), logicalId)
+		cwClient := cloudwatchlogs.NewFromConfig(providerCfg)
+		logWriter = cloudwatchwriter.NewSync(ctx, cwClient, event.RequestData.ProviderLogGroupName, logStreamName)
 
-			log.SetOutput(logWriter)
+		log.SetOutput(logWriter)
+		log.SetFlags(0)
+		log.SetPrefix("")
 
-			if hlog, ok := handler.(logSetuper); ok {
-				hlog.SetLogWriter(logWriter)
-			}
+		if hlog, ok := handler.(logSetuper); ok {
+			hlog.SetLogWriter(logWriter)
+		}
 
-		})
+		// })
 
 		if hlog, ok := handler.(logContextSetter); ok {
 			ctx = hlog.SetLogContext(ctx, logWriter)
@@ -101,22 +105,20 @@ func makeEventFunc[Model any, Ctx any](handler Handler[Model, Ctx]) func(context
 
 		handlerFn, err := router(event.Action, handler)
 		if err != nil {
-			return newFailedResponse(err, event.BearerToken), err
+			return newFailedResponse(err, event.BearerToken)
 		}
 
 		req, err := newRequest[Model, Ctx](event)
 		if err != nil {
-			return newFailedResponse(err, event.BearerToken), err
+			return newFailedResponse(err, event.BearerToken)
 		}
 
 		pe := invoke(handlerFn, ctx, req)
 		resp, err := newResponse(pe, event.BearerToken)
 		if err != nil {
-			return newFailedResponse(err, event.BearerToken), err
+			return newFailedResponse(err, event.BearerToken)
 		}
-
 		return resp, nil
-
 	}
 }
 
@@ -133,9 +135,7 @@ func router[Model any, Ctx any](action string, handler Handler[Model, Ctx]) (fun
 	case listAction:
 		return handler.List, nil
 	default:
-		// No action matched, we should fail and return an InvalidRequestErrorCode
-		// return nil, cfnerr.New(invalidRequestError, "No action/invalid action specified", nil)
-		return nil, errors.New("oops")
+		return nil, cfnerr.New(cfnerr.InvalidRequest, "No action/invalid action specified", nil)
 	}
 }
 
@@ -144,12 +144,30 @@ func invoke[Model any, Ctx any](handlerFn func(context.Context, *Request[Model, 
 	ch := make(chan *ProgressEvent[Model, Ctx], 1)
 
 	go func() {
-		pe, err := handlerFn(ctx, request)
-		if err != nil {
-			pe = request.ErrorResponse(err)
-		}
-		ch <- pe
+		ch <- invokeWrap(handlerFn, ctx, request)
 	}()
 
 	return <-ch
+}
+
+func invokeWrap[Model any, Ctx any](handlerFn func(context.Context, *Request[Model, Ctx]) (*ProgressEvent[Model, Ctx], error), ctx context.Context, request *Request[Model, Ctx]) (respPE *ProgressEvent[Model, Ctx]) {
+	defer func() {
+		// Catch any panics and return a failed ProgressEvent
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if !ok {
+				err = errors.New(fmt.Sprint(r))
+			}
+
+			log.Printf("Trapped error in handler: %v", err)
+
+			respPE = request.ErrorResponse(err).WithErrorCode(cfnTypes.HandlerErrorCodeInternalFailure)
+		}
+	}()
+
+	pe, err := handlerFn(ctx, request)
+	if err != nil {
+		pe = request.ErrorResponse(err)
+	}
+	return pe
 }

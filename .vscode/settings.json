@@ -1,0 +1,7 @@
+{
+  "go.testEnvVars": {
+    "AWS_ACCESS_KEY_ID": "bad",
+    "AWS_SECRET_ACCESS_KEY": "bad",
+    "AWS_SESSION_TOKEN": "bad",
+  }
+}

@@ -2,6 +2,7 @@ package cfnresource
 
 import (
 	cfnTypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/webdestroya/cfnresource/cfnerr"
 	"github.com/webdestroya/cfnresource/encoding"
 )
 
@@ -48,17 +49,27 @@ type response struct {
 	// CallbackDelaySeconds will be scheduled with an initial delay of no less than the number
 	// of seconds specified in the progress event. Set this value to <= 0 to
 	// indicate no callback should be made.
-	CallbackDelaySeconds int64 `json:"callbackDelaySeconds,omitempty"`
+	CallbackDelaySeconds int `json:"callbackDelaySeconds,omitempty"`
 }
 
 // newFailedResponse returns a response pre-filled with the supplied error
-func newFailedResponse(err error, bearerToken string) response {
+func newFailedResponse(err error, bearerToken string) (response, error) {
+
+	if ce, ok := cfnerr.As(err); ok {
+		return response{
+			OperationStatus: cfnTypes.OperationStatusFailed,
+			ErrorCode:       string(ce.Code()),
+			Message:         ce.Message(),
+			BearerToken:     bearerToken,
+		}, nil
+	}
+
 	return response{
 		OperationStatus: cfnTypes.OperationStatusFailed,
-		ErrorCode:       string(cfnTypes.HandlerErrorCodeHandlerInternalFailure),
+		ErrorCode:       string(cfnTypes.HandlerErrorCodeInternalFailure),
 		Message:         err.Error(),
 		BearerToken:     bearerToken,
-	}
+	}, err
 }
 
 // newResponse converts a progress event into a useable reponse

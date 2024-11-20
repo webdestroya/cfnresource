@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/aws-cloudformation/cloudformation-cli-go-plugin/cfn/encoding"
-
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/google/go-cmp/cmp"
-
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/stretchr/testify/require"
+	"github.com/webdestroya/cfnresource/encoding"
 )
 
 func TestEncoding(t *testing.T) {
@@ -74,16 +73,12 @@ func TestEncoding(t *testing.T) {
 	var err error
 
 	rep, err := encoding.Marshal(m)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Test that rep can be unmarshalled as regular JSON
 	var jsonTest map[string]interface{}
 	err = json.Unmarshal(rep, &jsonTest)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	// And check it matches the expected form
 	if diff := cmp.Diff(jsonTest, stringMap); diff != "" {

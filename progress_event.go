@@ -4,6 +4,7 @@ import (
 	"time"
 
 	cfnTypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/webdestroya/cfnresource/cfnerr"
 )
 
 type ProgressEvent[Model any, CallbackCtx any] struct {
@@ -28,7 +29,7 @@ type ProgressEvent[Model any, CallbackCtx any] struct {
 	// CallbackDelaySeconds will be scheduled with an initial delay of no less than the number
 	// of seconds specified in the progress event. Set this value to <= 0 to
 	// indicate no callback should be made.
-	CallbackDelaySeconds int64 `json:"callbackDelaySeconds,omitempty"`
+	CallbackDelaySeconds int `json:"callbackDelaySeconds,omitempty"`
 
 	// ResourceModel is the output resource instance populated by a READ/LIST for synchronous results
 	// and by CREATE/UPDATE/DELETE for final response validation/confirmation
@@ -50,7 +51,7 @@ func (pe *ProgressEvent[Model, CallbackCtx]) WithMessage(v string) *ProgressEven
 }
 
 func (pe *ProgressEvent[Model, CallbackCtx]) WithCallbackDelay(v time.Duration) *ProgressEvent[Model, CallbackCtx] {
-	pe.CallbackDelaySeconds = int64(v.Seconds())
+	pe.CallbackDelaySeconds = int(v.Seconds())
 	return pe
 }
 
@@ -66,6 +67,16 @@ func (pe *ProgressEvent[Model, CallbackCtx]) WithModel(model *Model) *ProgressEv
 
 func (pe *ProgressEvent[Model, CallbackCtx]) WithErrorCode(code cfnTypes.HandlerErrorCode) *ProgressEvent[Model, CallbackCtx] {
 	pe.HandlerErrorCode = code
+	return pe
+}
+
+func (pe *ProgressEvent[Model, CallbackCtx]) WithError(err error) *ProgressEvent[Model, CallbackCtx] {
+	if ce, ok := cfnerr.As(err); ok {
+		pe.Message = ce.Message()
+		pe.HandlerErrorCode = ce.Code()
+	} else {
+		pe.Message = err.Error()
+	}
 	return pe
 }
 

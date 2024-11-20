@@ -229,7 +229,18 @@ func Unstringify(data map[string]interface{}, v interface{}) error {
 				return err
 			}
 
-			val.FieldByName(f.Name).Set(newValue)
+			field := val.FieldByName(f.Name)
+			fieldType := field.Type()
+			newType := newValue.Type()
+
+			if fieldType == newType {
+				field.Set(newValue)
+			} else if newType.ConvertibleTo(fieldType) {
+				field.Set(newValue.Convert(fieldType))
+			} else {
+				return fmt.Errorf("cannot convert type %v to %v", newType, fieldType)
+			}
+
 		}
 	}
 

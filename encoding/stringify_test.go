@@ -3,9 +3,10 @@ package encoding_test
 import (
 	"testing"
 
-	"github.com/aws-cloudformation/cloudformation-cli-go-plugin/cfn/encoding"
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
+	"github.com/webdestroya/cfnresource/encoding"
 )
 
 func TestStringifyTypes(t *testing.T) {
@@ -56,9 +57,7 @@ func TestStringifyTypes(t *testing.T) {
 		{nil, nil},
 	} {
 		actual, err := encoding.Stringify(testCase.data)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		if d := cmp.Diff(actual, testCase.expected); d != "" {
 			t.Errorf(d)
@@ -105,9 +104,7 @@ func TestStringifyModel(t *testing.T) {
 	}
 
 	actual, err := encoding.Stringify(m)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	if d := cmp.Diff(actual, expected); d != "" {
 		t.Errorf(d)
