@@ -78,10 +78,6 @@ func makeEventFunc[Model any, Ctx any](handler Handler[Model, Ctx]) func(context
 		ctx = cfncontext.SetAwsConfig(ctx, callerCfg)
 
 		logicalId := event.RequestData.LogicalResourceID
-		// stackName := "unknown"
-		// if v, ok := event.RequestData.SystemTags[stackNameSystemTag]; ok {
-		// 	stackName = v
-		// }
 
 		// logging setup
 		// logSetup.Do(func() {
@@ -93,14 +89,16 @@ func makeEventFunc[Model any, Ctx any](handler Handler[Model, Ctx]) func(context
 		log.SetFlags(0)
 		log.SetPrefix("")
 
-		if hlog, ok := handler.(logSetuper); ok {
-			hlog.SetLogWriter(logWriter)
+		// })
+		if hlog, ok := handler.(PostInitializer); ok {
+			ctx, err = hlog.PostInitialize(ctx, logWriter)
+			if err != nil {
+				return newFailedResponse(err, event.BearerToken)
+			}
 		}
 
-		// })
-
-		if hlog, ok := handler.(logContextSetter); ok {
-			ctx = hlog.SetLogContext(ctx, logWriter)
+		if hlog, ok := handler.(eventLogger); ok {
+			hlog.LogEvent(ctx, event)
 		}
 
 		handlerFn, err := router(event.Action, handler)
