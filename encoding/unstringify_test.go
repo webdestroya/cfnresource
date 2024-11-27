@@ -54,9 +54,7 @@ func TestUnstringifyStruct(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 
 	t.Run("Original types", func(t *testing.T) {
@@ -77,9 +75,7 @@ func TestUnstringifyStruct(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 
 	t.Run("Compatible types", func(t *testing.T) {
@@ -100,9 +96,7 @@ func TestUnstringifyStruct(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 }
 
@@ -145,9 +139,7 @@ func TestUnstringifySlices(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 
 	t.Run("Original types", func(t *testing.T) {
@@ -166,9 +158,7 @@ func TestUnstringifySlices(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 
 	t.Run("Compatible types", func(t *testing.T) {
@@ -187,9 +177,7 @@ func TestUnstringifySlices(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 }
 
@@ -232,9 +220,7 @@ func TestUnstringifyMaps(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 
 	t.Run("Original types", func(t *testing.T) {
@@ -253,9 +239,7 @@ func TestUnstringifyMaps(t *testing.T) {
 
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 
 	t.Run("Compatible types", func(t *testing.T) {
@@ -273,10 +257,7 @@ func TestUnstringifyMaps(t *testing.T) {
 		}, &actual)
 
 		require.NoError(t, err)
-
-		if d := cmp.Diff(actual, expected); d != "" {
-			t.Error(d)
-		}
+		require.Empty(t, cmp.Diff(actual, expected))
 	})
 }
 
@@ -300,7 +281,28 @@ func TestUnstringifyPointers(t *testing.T) {
 
 	require.NoError(t, err)
 
-	if d := cmp.Diff(actual, expected); d != "" {
-		t.Error(d)
+	require.Empty(t, cmp.Diff(actual, expected))
+}
+
+func TestUnstringifyBadFields(t *testing.T) {
+	type Model struct {
+		B  bool
+		BP *bool
 	}
+
+	expected := Model{
+		B:  false,
+		BP: aws.Bool(false),
+	}
+
+	var actual Model
+
+	err := encoding.Unstringify(map[string]interface{}{
+		"B":  "",
+		"BP": "",
+	}, &actual)
+
+	require.NoError(t, err)
+
+	require.Empty(t, cmp.Diff(actual, expected))
 }

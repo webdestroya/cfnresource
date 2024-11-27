@@ -81,18 +81,11 @@ func TestEncoding(t *testing.T) {
 	require.NoError(t, err)
 
 	// And check it matches the expected form
-	if diff := cmp.Diff(jsonTest, stringMap); diff != "" {
-		t.Errorf(diff)
-	}
+	require.Empty(t, cmp.Diff(jsonTest, stringMap))
 
 	// Now check we can get the original struct back
 	var b Main
 	err = encoding.Unmarshal(rep, &b)
-	if err != nil {
-		panic(err)
-	}
-
-	if diff := cmp.Diff(m, b); diff != "" {
-		t.Errorf(diff)
-	}
+	require.NoError(t, err)
+	require.Empty(t, cmp.Diff(m, b))
 }
