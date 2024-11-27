@@ -142,7 +142,13 @@ func invoke[Model any, Ctx any](handlerFn func(context.Context, *Request[Model, 
 	ch := make(chan *ProgressEvent[Model, Ctx], 1)
 
 	go func() {
-		ch <- invokeWrap(handlerFn, ctx, request)
+		select {
+		case <-ctx.Done():
+			ch <- request.ErrorResponse(ctx.Err())
+		case ch <- invokeWrap(handlerFn, ctx, request):
+			// nothing
+		}
+		// ch <- invokeWrap(handlerFn, ctx, request)
 	}()
 
 	return <-ch

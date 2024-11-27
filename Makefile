@@ -6,7 +6,7 @@ tidy:
 
 .PHONY: test
 test:
-	go test -v -timeout 180s $(gopkgs)
+	go test -v -timeout 90s $(gopkgs)
 
 .PHONY: bench
 bench:

@@ -3,10 +3,12 @@ package cfnresource
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"testing"
 
 	cfnTypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/webdestroya/cfnresource/cfncontext"
 )
@@ -27,40 +29,60 @@ type callbackCtx struct {
 
 type ctxKeyType string
 
-var dummyCtx = ctxKeyType("dummy")
+const (
+	dummyCtx = ctxKeyType("dummy")
+	testCtx  = ctxKeyType("test")
+)
 
 type requestType = *Request[model, callbackCtx]
 type progEventType = *ProgressEvent[model, callbackCtx]
 
 type basicHandler struct {
-	t *testing.T
 }
 
-func (basicHandler) SetLogContext(ctx context.Context, w io.Writer) context.Context {
-	return context.WithValue(ctx, dummyCtx, "some test val")
+var (
+	_ Handler[model, callbackCtx] = (*basicHandler)(nil)
+	_ PostInitializer             = (*basicHandler)(nil)
+)
+
+func (basicHandler) PostInitialize(ctx context.Context, w io.Writer) (context.Context, error) {
+	return context.WithValue(ctx, dummyCtx, "some test val"), nil
 }
 
-func (h basicHandler) Create(ctx context.Context, req requestType) (progEventType, error) {
+func (basicHandler) Create(ctx context.Context, req requestType) (resp progEventType, err error) {
 
-	require.Equal(h.t, "Test Thing", req.ResourceProperties.Name)
-	require.Equal(h.t, fancyStr("yaryar"), req.ResourceProperties.FancyPants)
+	t := ctx.Value(testCtx).(*testing.T)
+
+	// defer func() {
+	// 	if t.Failed() {
+	// 		t.Log("FAILED!!!!")
+
+	// 	}
+	// }()
+	assert.Equal(t, "Test Thing", req.ResourceProperties.Name)
+	assert.Equal(t, fancyStr("yaryar"), req.ResourceProperties.FancyPants)
 
 	val, ok := ctx.Value(dummyCtx).(string)
-	require.True(h.t, ok)
-	require.Equal(h.t, "some test val", val)
+	assert.True(t, ok)
+	assert.Equal(t, "some test val", val)
 
 	cfg, err := cfncontext.GetAwsConfig(ctx)
-	require.NoError(h.t, err)
+	assert.NoError(t, err)
 
 	creds, err := cfg.Credentials.Retrieve(ctx)
-	require.NoError(h.t, err)
+	assert.NoError(t, err)
 
-	require.Equal(h.t, "fake", creds.AccessKeyID)
-	require.Equal(h.t, "SampleStack", req.StackName)
+	assert.Equal(t, "fake", creds.AccessKeyID)
+	assert.Equal(t, "SampleStack", req.StackName)
 
-	require.Equal(h.t, "logically", req.LogicalResourceID)
+	assert.Equal(t, "logically", req.LogicalResourceID)
 
 	// return req.ErrorResponse("oops"), nil
+
+	if t.Failed() {
+		return nil, errors.New("failed test")
+	}
+
 	return req.SuccessResponse(&model{
 		Name:    req.ResourceProperties.Name,
 		BoolVal: true,
@@ -90,7 +112,11 @@ func (basicHandler) List(ctx context.Context, req requestType) (progEventType, e
 }
 
 func TestHandlerBasic(t *testing.T) {
-	fn := makeEventFunc(basicHandler{t})
+
+	ctx := context.TODO()
+	ctx = context.WithValue(ctx, testCtx, t)
+
+	fn := makeEventFunc(basicHandler{})
 
 	creds := &credProvider{
 		AccessKeyID:     "fake",
@@ -121,7 +147,7 @@ func TestHandlerBasic(t *testing.T) {
 		NextToken: "",
 	}
 
-	resp, err := fn(context.Background(), ev)
+	resp, err := fn(ctx, ev)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -130,14 +156,14 @@ func TestHandlerBasic(t *testing.T) {
 	// t.Logf("STUFF: %v", string(respData))
 
 	ev.Action = updateAction
-	resp, err = fn(context.Background(), ev)
+	resp, err = fn(ctx, ev)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, cfnTypes.OperationStatusInProgress, resp.OperationStatus)
 
 	ev.Action = updateAction
 	ev.CallbackContext = json.RawMessage(`{"Step": "1234"}`)
-	resp, err = fn(context.Background(), ev)
+	resp, err = fn(ctx, ev)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, cfnTypes.OperationStatusInProgress, resp.OperationStatus)
@@ -145,7 +171,7 @@ func TestHandlerBasic(t *testing.T) {
 }
 
 func TestPanicker(t *testing.T) {
-	fn := makeEventFunc(basicHandler{t})
+	fn := makeEventFunc(basicHandler{})
 
 	creds := &credProvider{
 		AccessKeyID:     "fake",
@@ -181,5 +207,5 @@ func TestPanicker(t *testing.T) {
 	require.NotNil(t, resp)
 	require.Equal(t, cfnTypes.OperationStatusFailed, resp.OperationStatus)
 	require.EqualValues(t, cfnTypes.HandlerErrorCodeInternalFailure, resp.ErrorCode)
-	t.Logf("msg=%s", resp.Message)
+	require.Contains(t, resp.Message, "invalid memory address")
 }
