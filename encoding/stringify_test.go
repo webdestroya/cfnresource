@@ -59,9 +59,7 @@ func TestStringifyTypes(t *testing.T) {
 		actual, err := encoding.Stringify(testCase.data)
 		require.NoError(t, err)
 
-		if d := cmp.Diff(actual, testCase.expected); d != "" {
-			t.Errorf(d)
-		}
+		require.Empty(t, cmp.Diff(actual, testCase.expected))
 	}
 }
 
@@ -106,7 +104,5 @@ func TestStringifyModel(t *testing.T) {
 	actual, err := encoding.Stringify(m)
 	require.NoError(t, err)
 
-	if d := cmp.Diff(actual, expected); d != "" {
-		t.Errorf(d)
-	}
+	require.Empty(t, cmp.Diff(actual, expected))
 }

@@ -100,9 +100,13 @@ func convertBool(i interface{}, pointer bool) (reflect.Value, error) {
 		b = v
 
 	case string:
-		b, err = strconv.ParseBool(v)
-		if err != nil {
-			return zeroValue, err
+		if len(v) == 0 {
+			b = false
+		} else {
+			b, err = strconv.ParseBool(v)
+			if err != nil {
+				return zeroValue, err
+			}
 		}
 
 	default:
