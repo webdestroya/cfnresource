@@ -43,6 +43,12 @@ func (cfnErr) isCfnError() bool {
 }
 
 func (b cfnErr) Error() string {
+	if b.err == nil {
+		if b.message == "" {
+			return string(b.code)
+		}
+		return string(b.code) + ":" + b.message
+	}
 	return string(b.code) + ":" + b.err.Error()
 }
 

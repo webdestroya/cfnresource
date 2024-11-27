@@ -21,9 +21,7 @@ type event struct {
 	CallbackContext     json.RawMessage `json:"callbackContext,omitempty"`
 	RequestData         requestData     `json:"requestData"`
 	StackID             string          `json:"stackId"`
-
-	// CallbackContext     map[string]interface{} `json:"callbackContext,omitempty"`
-	NextToken string
+	NextToken           string
 }
 
 // requestData is internal to the RPDK. It contains a number of fields that are for
@@ -46,26 +44,17 @@ type requestData struct {
 }
 
 type credProvider struct {
-	// AccessKeyID ...
-	AccessKeyID string `json:"accessKeyId"`
-
-	// SecretAccessKey ...
+	AccessKeyID     string `json:"accessKeyId"`
 	SecretAccessKey string `json:"secretAccessKey"`
-
-	// SessionToken ...
-	SessionToken string `json:"sessionToken"`
-
-	// internalProvider aws.CredentialsProvider
-	// once sync.Once
+	SessionToken    string `json:"sessionToken"`
 }
 
 var _ aws.CredentialsProvider = (*credProvider)(nil)
 
 func (c *credProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
-	// c.once.Do(func() {
-	// 	c.internalProvider = credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken)
-	// })
-	// return c.internalProvider.Retrieve(ctx)
-
 	return credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, c.SessionToken).Retrieve(ctx)
+}
+
+func (credProvider) MarshalJSON() ([]byte, error) {
+	return []byte(`"REDACTED"`), nil
 }
